@@ -12,20 +12,20 @@ import java.util.Properties;
 public class Main {
 
     public static void main(String args[]){
-        loadData(100000,1000);
+        loadData(1,1,124);
     }
 
-    static void loadData(int howMany,int batchSize){
+    static void loadData(int howMany,int batchSize,int maxNumAttributes){
         long startTime = 0l;
         long endTime = 0l;
         System.out.println("now: writing in batches of "+batchSize);
         startTime = System.currentTimeMillis();
-        batchLoadRecords(howMany,batchSize);
+        batchLoadRecords(howMany,batchSize,maxNumAttributes);
         endTime = System.currentTimeMillis();
         System.out.println("Loading "+howMany+" hashes in batch sizes of "+batchSize+" took "+(endTime-startTime)/1000+" seconds");
     }
 
-    static void batchLoadRecords(int numHashes,int batchSize) {
+    static void batchLoadRecords(int numHashes,int batchSize, int maxNumAttributes) {
         int batches = numHashes / batchSize;
         int counter = 0;
         Jedis batchJedis = null;
@@ -36,7 +36,7 @@ public class Main {
                 counter++;
                 Transaction trans = batchJedis.multi();
                 for (int y = 0; y < batchSize; y++) {
-                    addRecord(trans);
+                    addRecord(trans, maxNumAttributes);
                 }
                 trans.exec();
                 if (counter % 10 == 0) {
@@ -53,9 +53,9 @@ public class Main {
         }
     }
 
-    static void addRecord(Transaction tx){
+    static void addRecord(Transaction tx, int maxNumAttributes){
         String hashKey = createKey();
-        Map<String,String> fields = getFields(hashKey);
+        Map<String,String> fields = getFields(hashKey, maxNumAttributes);
         tx.hset(hashKey, fields);
         tx.expire(hashKey,(86400*2));
     }
@@ -88,8 +88,9 @@ public class Main {
     //               |- ONET3D_ANDROID_REWARD_LA_BIDDING-4910186: 10
     //               |- ONET3D_ANDROID_REWARD_LA_BIDDING-4910187: 1
     //               |- ONET3D_ANDROID_REWARD_LA_BIDDING-4910188: 1
-    static Map<String,String> getFields(String parentKey){
+    static Map<String,String> getFields(String parentKey, int numFields){
         HashMap<String,String> map = new HashMap<>();
+        /*
         long numFields = (System.currentTimeMillis()%20)+8;
         if(System.nanoTime()%40==0){
             numFields = numFields*(3+System.nanoTime()%3);
@@ -97,6 +98,8 @@ public class Main {
                 System.out.println("\n" + parentKey + " has " + numFields + " fields");
             }
         }
+        *
+         */
         String phoneOS = DummyData.getPhoneOS();
         for(int x=0;x < numFields;x++){
             String field = DummyData.getNetworkProvider()+"_"+
