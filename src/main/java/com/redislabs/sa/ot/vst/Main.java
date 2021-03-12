@@ -12,31 +12,51 @@ import java.util.Properties;
 public class Main {
 
     public static void main(String args[]){
-        loadData(1,1,124);
+        int howMany=10000;
+        int batchSize=1000;
+        int subKeysPerHash=10;
+
+        if(args.length>0){
+            for(String i : args){
+                if(i.startsWith("-howMany:")){howMany=Integer.parseInt(i.split(":")[1]);}
+                if(i.startsWith("-batchSize:")){batchSize=Integer.parseInt(i.split(":")[1]);}
+                if(i.startsWith("-subKeysPerHash:")){subKeysPerHash=Integer.parseInt(i.split(":")[1]);}
+            }
+        }else{
+            System.out.println("This program writes hashes to a redis database.\n" +
+                    " please pass this program 3 args \n" +
+                    "(for each arg, adjust the portion after the : to suit your needs) \n" +
+                    "-howMany:10000\n" +
+                    "-batchSize:1000\n" +
+                    "-subKeysPerHash:10");
+            System.exit(0);
+        }
+        loadData(howMany,batchSize,subKeysPerHash);
     }
 
-    static void loadData(int howMany,int batchSize,int maxNumAttributes){
+    static void loadData(int howMany,int batchSize,int subKeysPerHash){
         long startTime = 0l;
         long endTime = 0l;
         System.out.println("now: writing in batches of "+batchSize);
         startTime = System.currentTimeMillis();
-        batchLoadRecords(howMany,batchSize,maxNumAttributes);
+        batchLoadRecords(howMany,batchSize,subKeysPerHash);
         endTime = System.currentTimeMillis();
         System.out.println("Loading "+howMany+" hashes in batch sizes of "+batchSize+" took "+(endTime-startTime)/1000+" seconds");
     }
 
-    static void batchLoadRecords(int numHashes,int batchSize, int maxNumAttributes) {
-        int batches = numHashes / batchSize;
+    static void batchLoadRecords(int howMany,int batchSize, int subKeysPerHash) {
+        int batches = howMany / batchSize;
         int counter = 0;
         Jedis batchJedis = null;
         try {
             batchJedis = JedisConnectionFactory.getInstance().getJedisPool().getResource();
+
             System.out.println("\t");
             for (int x = 0; x < batches; x++) {
                 counter++;
                 Transaction trans = batchJedis.multi();
                 for (int y = 0; y < batchSize; y++) {
-                    addRecord(trans, maxNumAttributes);
+                    addRecord(trans, subKeysPerHash);
                 }
                 trans.exec();
                 if (counter % 10 == 0) {
@@ -53,9 +73,9 @@ public class Main {
         }
     }
 
-    static void addRecord(Transaction tx, int maxNumAttributes){
+    static void addRecord(Transaction tx, int subKeysPerHash){
         String hashKey = createKey();
-        Map<String,String> fields = getFields(hashKey, maxNumAttributes);
+        Map<String,String> fields = getFields(hashKey, subKeysPerHash);
         tx.hset(hashKey, fields);
         tx.expire(hashKey,(86400*2));
     }
