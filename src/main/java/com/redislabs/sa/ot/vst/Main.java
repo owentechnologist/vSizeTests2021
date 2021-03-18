@@ -5,6 +5,8 @@ import com.redislabs.sa.ot.util.PropertyFileFetcher;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Transaction;
 
+import com.google.gson.Gson;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -12,9 +14,9 @@ import java.util.Properties;
 public class Main {
 
     public static void main(String args[]){
-        int howMany=10000;
-        int batchSize=1000;
-        int subKeysPerHash=10;
+        int howMany=100;
+        int batchSize=1;
+        int subKeysPerHash=1000;
 
         if(args.length>0){
             for(String i : args){
@@ -29,7 +31,7 @@ public class Main {
                     "-howMany:10000\n" +
                     "-batchSize:1000\n" +
                     "-subKeysPerHash:10");
-            System.exit(0);
+            //System.exit(0);
         }
         loadData(howMany,batchSize,subKeysPerHash);
     }
@@ -56,7 +58,8 @@ public class Main {
                 counter++;
                 Transaction trans = batchJedis.multi();
                 for (int y = 0; y < batchSize; y++) {
-                    addRecord(trans, subKeysPerHash);
+                    addJSONifiedRecord(trans, subKeysPerHash);
+                    //addRecord(trans, subKeysPerHash);
                 }
                 trans.exec();
                 if (counter % 10 == 0) {
@@ -77,6 +80,15 @@ public class Main {
         String hashKey = createKey();
         Map<String,String> fields = getFields(hashKey, subKeysPerHash);
         tx.hset(hashKey, fields);
+        tx.expire(hashKey,(86400*2));
+    }
+
+    static void addJSONifiedRecord(Transaction tx,int subKeysPerHash){
+        String hashKey = createKey();
+        Map<String,String> fields = getFields(hashKey, subKeysPerHash);
+        Gson gson = new Gson();
+        String jsonifiedHash = gson.toJson(fields);
+        tx.set(hashKey, jsonifiedHash);
         tx.expire(hashKey,(86400*2));
     }
 
